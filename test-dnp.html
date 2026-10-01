@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  >
+
+  <title>Test DNP WCM Plus</title>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 30px;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f3f3;
+      color: #111;
+      text-align: center;
+    }
+
+    .contenitore {
+      max-width: 700px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      border-radius: 25px;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.10);
+    }
+
+    h1 {
+      font-size: 38px;
+      margin-bottom: 10px;
+    }
+
+    .sottotitolo {
+      font-size: 20px;
+      color: #666;
+      margin-bottom: 35px;
+    }
+
+    .stampante {
+      display: inline-block;
+      padding: 10px 18px;
+      background: #eeeeee;
+      border-radius: 20px;
+      margin-bottom: 30px;
+      font-size: 16px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      font-size: 20px;
+      padding: 20px;
+      border: 2px dashed #aaa;
+      border-radius: 15px;
+      background: #fafafa;
+      margin-bottom: 25px;
+    }
+
+    #anteprima {
+      display: none;
+      width: 100%;
+      max-height: 500px;
+      object-fit: contain;
+      margin-bottom: 25px;
+      border-radius: 15px;
+      background: #eee;
+    }
+
+    #stampa {
+      width: 100%;
+      border: none;
+      border-radius: 15px;
+      padding: 25px;
+      font-size: 26px;
+      font-weight: bold;
+      background: black;
+      color: white;
+      cursor: pointer;
+    }
+
+    #stampa:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    #stato {
+      min-height: 35px;
+      margin-top: 25px;
+      font-size: 21px;
+      font-weight: bold;
+    }
+
+    .info {
+      margin-top: 35px;
+      font-size: 14px;
+      color: #888;
+    }
+
+  </style>
+</head>
+
+
+<body>
+
+<div class="contenitore">
+
+  <h1>TEST DNP</h1>
+
+  <div class="sottotitolo">
+    Stampa Wi-Fi diretta
+  </div>
+
+  <div class="stampante">
+    WCM Plus → DNP RX1HS
+  </div>
+
+  <input
+    type="file"
+    id="foto"
+    accept="image/jpeg,image/png,image/*"
+  >
+
+  <img
+    id="anteprima"
+    alt="Anteprima foto"
+  >
+
+  <button
+    id="stampa"
+    disabled
+  >
+    STAMPA SU DNP
+  </button>
+
+  <div id="stato"></div>
+
+  <div class="info">
+    WCM Plus: 192.168.4.1<br>
+    Formato: 4×6<br>
+    Quantità: 1
+  </div>
+
+</div>
+
+
+<script>
+
+const inputFoto = document.getElementById("foto");
+const anteprima = document.getElementById("anteprima");
+const bottoneStampa = document.getElementById("stampa");
+const stato = document.getElementById("stato");
+
+let fotoSelezionata = null;
+
+
+// ========================================
+// SELEZIONE FOTO
+// ========================================
+
+inputFoto.addEventListener("change", function () {
+
+  if (!inputFoto.files.length) {
+
+    fotoSelezionata = null;
+
+    anteprima.style.display = "none";
+
+    bottoneStampa.disabled = true;
+
+    stato.innerText = "";
+
+    return;
+  }
+
+
+  fotoSelezionata = inputFoto.files[0];
+
+
+  // Mostra anteprima
+
+  const urlFoto = URL.createObjectURL(fotoSelezionata);
+
+  anteprima.src = urlFoto;
+
+  anteprima.style.display = "block";
+
+
+  // Attiva pulsante
+
+  bottoneStampa.disabled = false;
+
+  stato.innerText = "Foto pronta.";
+
+});
+
+
+
+// ========================================
+// STAMPA
+// ========================================
+
+bottoneStampa.addEventListener("click", async function () {
+
+  if (!fotoSelezionata) {
+
+    stato.innerText = "Seleziona prima una foto.";
+
+    return;
+  }
+
+
+  bottoneStampa.disabled = true;
+
+  stato.innerText = "Invio foto alla DNP...";
+
+
+  // Creiamo richiesta WCM Plus
+
+  const form = new FormData();
+
+  form.append(
+    "printSize",
+    "s4x6"
+  );
+
+  form.append(
+    "quantity",
+    "1"
+  );
+
+  form.append(
+    "imageEdited",
+    "false"
+  );
+
+  form.append(
+    "imageFile",
+    fotoSelezionata,
+    "foto.jpg"
+  );
+
+
+  try {
+
+    // ========================================
+    // INVIO DIRETTO AL WCM PLUS
+    // ========================================
+
+    await fetch(
+      "http://192.168.4.1/api/PrintImage",
+      {
+
+        method: "POST",
+
+        mode: "no-cors",
+
+        body: form
+
+      }
+    );
+
+
+    // Con no-cors Safari non ci permette
+    // di leggere la risposta del WCM.
+    //
+    // Ma il file viene comunque inviato.
+
+    stato.innerText =
+      "✓ FOTO INVIATA ALLA STAMPANTE";
+
+
+  } catch (errore) {
+
+    console.error(
+      "Errore stampa:",
+      errore
+    );
+
+
+    stato.innerText =
+      "ERRORE DI CONNESSIONE AL WCM";
+
+
+  }
+
+
+  // Riattiva il pulsante dopo 3 secondi
+
+  setTimeout(function () {
+
+    bottoneStampa.disabled = false;
+
+  }, 3000);
+
+
+});
+
+</script>
+
+</body>
+
+</html>
